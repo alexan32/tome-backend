@@ -1,0 +1,3 @@
+env: d0
+region: <your aws region>
+account: <your aws account>

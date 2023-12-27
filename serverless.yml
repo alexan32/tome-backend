@@ -1,0 +1,77 @@
+service: tome-backend
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-python-requirements
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  stackName: tome-${opt:stage, 'dev'}
+  deploymentMethod: direct
+  runtime: python3.11
+  # config: ${file(../config/${opt:stage, 'dev'}.yml)}	
+  httpApi:
+    cors: true
+
+custom:
+  env: ${self:provider.config.env}
+  prefix: tome-${self:custom.env}
+  userTable: ${self:custom.prefix}-userTable
+  serverConfigTable: ${self:custom.prefix}-serverConfigTable
+  pythonRequirements:
+    useStaticCache: false
+    useDownloadCache: false
+    noDeploy: []
+    slim: true
+    layer:
+      compatibleRuntimes:
+        - python3.11
+
+package:
+  individually: true
+  patterns:
+    - '!./**'
+  
+functions:
+  gameService:
+    name: ${self:custom.prefix}-gameService
+    description: tome endpoint
+    handler: lambdas/loginService.handler
+    events:
+    - httpApi:
+        path: /health
+        method: GET
+    layers: 
+      - !Ref PythonRequirementsLambdaLayer
+    package:
+      patterns:
+        - lambdas/gameService.py
+        - lambdas/utils.py
+    timeout: 6
+    memorySize: 128
+    environment:
+      LOG_LEVEL: logging.INFO
+    # iamRoleStatementsName: ${self:custom.prefix}-login-role
+    # iamRoleStatements:
+    #   - Effect: Allow
+    #     Action:
+    #       - dynamodb:*
+    #     Resource: 
+    #       - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.userTable}
+    #       - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.userTable}/*
+
+# you can add CloudFormation resource templates here
+#resources:
+#  Resources:
+#    NewResource:
+#      Type: AWS::S3::Bucket
+#      Properties:
+#        BucketName: my-new-bucket
+#  Outputs:
+#     NewOutput:
+#       Description: "Description for the output"
+#       Value: "Some output value"
