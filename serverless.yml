@@ -1,4 +1,4 @@
-service: tome-backend
+service: ${self:provider.stackName}
 
 frameworkVersion: '3'
 
@@ -10,10 +10,10 @@ provider:
   name: aws
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  stackName: tome-${opt:stage, 'dev'}
+  stackName: tome-backend-${opt:stage, 'dev'}
   deploymentMethod: direct
   runtime: python3.11
-  # config: ${file(../config/${opt:stage, 'dev'}.yml)}	
+  config: ${file(./config/${opt:stage, 'dev'}.yml)}	
   httpApi:
     cors: true
 
