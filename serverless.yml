@@ -44,11 +44,14 @@ functions:
     handler: lambdas/characterService.lambda_handler
     events:
     - httpApi:
-        path: /character
+        path: /characterservice/character
         method: GET
     - httpApi:
-        path: /character
-        method: POST
+        path: /characterservice/health
+        method: GET
+    - httpApi:
+        path: /characterservice/character
+        method: PUT
     layers: 
       - !Ref PythonRequirementsLambdaLayer
     package:
@@ -73,17 +76,23 @@ functions:
   gameService:
     name: ${self:custom.prefix}-gameService
     description: tome endpoint for managing game data
-    handler: lambdas/loginService.handler
+    handler: lambdas/gameService.lambda_handler
     events:
     - httpApi:
-        path: /health
+        path: /gameservice/health
         method: GET
     - httpApi:
-        path: /game
+        path: /gameservice/game
         method: GET
     - httpApi:
-        path: /game
-        method: POST
+        path: /gameservice/game
+        method: PUT
+    - httpApi:
+        path: /gameservice/participant
+        method: PUT
+    - httpApi:
+        path: /gameservice/participant
+        method: DELETE
     layers: 
       - !Ref PythonRequirementsLambdaLayer
     package:

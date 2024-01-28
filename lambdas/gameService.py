@@ -29,14 +29,23 @@ def lambda_handler(event, context):
 
     logger.info(f"\npath: {path}\nmethod: {method}\nbody: {body}") 
     
-    if method == 'GET' and path == '/health':
+    if method == 'GET' and path == '/gameservice/health':
         response = buildResponse(200, "UP")
 
-    elif method == 'POST' and path == '/game':
+    elif method == 'POST' and path == '/gameservice/create-game':
         response = createGame(body)
 
-    elif method == "GET" and path == '/game':
+    elif method == "GET" and path == '/gameservice/game':
         response = getGame(body)
+
+    elif method == "PUT" and path == '/gameservice/game':
+        response = updateGame(body)
+
+    elif method == "PUT" and path == "/gameservice/participant":
+        response = putParticipant(body)
+
+    elif method == "DELETE" and path == "/gameservice/participant":
+        response = removeParticipant(body)
 
     else:
         response = buildResponse(status, message)
@@ -51,16 +60,16 @@ def createGame(body):
     ownerId= body.get("ownerId", "").strip().lower()
 
     if ownerUser == "" or guildId == "" or ownerId == "":
-        return buildResponse(401, "missing required parameters. expected \"ownerUser\", \"guildId\", and \"ownerId\".")
+        return buildResponse(422, "missing required parameters. expected \"ownerUser\", \"guildId\", and \"ownerId\".")
 
-    status, message = createNewGame()
+    status, message = createNewGame(guildId, ownerId, ownerUser)
     return buildResponse(status, message)
 
 
 def getGame(body):
     guildId = body.get("guildId", "").strip().lower()
     if guildId == "":
-        return buildResponse(401, "missing required parameter \"guildId\".")
+        return buildResponse(422, "missing required parameter \"guildId\".")
 
     status, message, data = performQuery(gameTable, {"KeyConditionExpression": Key('guildId').eq(guildId)})
     if status != 200:
@@ -70,8 +79,57 @@ def getGame(body):
     return buildResponse(status, message, data[0])
 
 
+def updateGame(body):
+    status, message = putItem(gameTable, body)
+    return status, message
+
+
+def putParticipant(body):
+    guildId = body.get("guildId", "").strip().lower()
+    participant = body.get("participant", "").strip().lower()
+    characterId = body.get("characterId", "").strip().lower()
+    if participant == "" or guildId == "":
+        return buildResponse(422, "missing required parameter. Expected \"guildId\" and \"participant\".")
+
+    if characterId == "":
+        characterId = None
+
+    status, message, data = performQuery(gameTable, {"KeyConditionExpression": Key('guildId').eq(guildId)})
+    if status != 200:
+        return buildResponse(500, message)
+    if len(data) == 0:
+        return buildResponse(404, f"No matching game for guildId \"{guildId}\"")
+    gameData = data[0]
+    
+    status, message = updateGameParticipant(gameData, participant, characterId)
+    return buildResponse(status, message)
+
+
+def removeParticipant(body):
+    guildId = body.get("guildId", "").strip().lower()
+    participant = body.get("participant", "").strip().lower()
+    if participant == "" or guildId == "":
+        return buildResponse(422, "missing required parameter. Expected \"guildId\" and \"participant\".")
+    
+    status, message, data = performQuery(gameTable, {"KeyConditionExpression": Key('guildId').eq(guildId)})
+    if status != 200:
+        return buildResponse(500, message)
+    if len(data) == 0:
+        return buildResponse(404, f"No matching game for guildId \"{guildId}\"")
+    gameData = data[0]
+    
+    del gameData["participants"][participant]
+    status, message = putItem(gameTable, gameData)
+    return buildResponse(status, message)
+
+
 # OTHER OPERATIONS ----------------------------------------
 
+def updateGameParticipant(gameData:dict, participant, activeCharacter=None):
+    gameData["participants"][participant] = {
+        "activeCharacter": activeCharacter
+    }
+    return putItem(gameTable, gameData)
 
 def createNewGame(guildId, ownerId, ownerUser):
     gameData = {

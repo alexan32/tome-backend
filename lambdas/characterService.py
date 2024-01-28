@@ -33,13 +33,13 @@ def lambda_handler(event, context):
 
     logger.info(f"\npath: {path}\nmethod: {method}\nbody: {body}") 
     
-    if method == 'GET' and path == '/health':
+    if method == 'GET' and path == '/characterservice/health':
         response = buildResponse(200, "UP")
 
-    elif method == 'GET' and path == '/character':
+    elif method == 'GET' and path == '/characterservice/character':
         response = getCharacter(body)
 
-    elif method == 'POST' and path == '/character':
+    elif method == 'PUT' and path == '/characterservice/character':
         response = putCharacter(body)
 
     else:
@@ -59,7 +59,8 @@ def getCharacter(body):
         return buildResponse(500, message)
     if len(data) == 0:
         return buildResponse(404, f"No matching character for characterId \"{characterId}\"")
-    return buildResponse(status, message, data[0])
+    
+    return buildResponse(status, message, {"data": data[0]})
 
 def putCharacter(body):
     body["characterId"] = body["characterId"].lower()
