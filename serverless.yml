@@ -20,8 +20,8 @@ provider:
 custom:
   env: ${self:provider.config.env}
   prefix: tome-${self:custom.env}
-  userTable: ${self:custom.prefix}-userTable
-  serverConfigTable: ${self:custom.prefix}-serverConfigTable
+  characterTable: ${self:custom.prefix}-characterTable
+  gameTable: ${self:custom.prefix}-gameTable
   pythonRequirements:
     useStaticCache: false
     useDownloadCache: false
@@ -37,14 +37,53 @@ package:
     - '!./**'
   
 functions:
+
+  characterService:
+    name: ${self:custom.prefix}-characterService
+    description: GET and PUT access to the characters table
+    handler: lambdas/characterService.lambda_handler
+    events:
+    - httpApi:
+        path: /character
+        method: GET
+    - httpApi:
+        path: /character
+        method: POST
+    layers: 
+      - !Ref PythonRequirementsLambdaLayer
+    package:
+      patterns:
+        - lambdas/characterService.py
+        - lambdas/utils.py
+    timeout: 6
+    memorySize: 128
+    environment:
+      LOG_LEVEL: logging.INFO
+      CHARACTER_TABLE: ${self:custom.characterTable}
+    iamRoleStatementsName: ${self:custom.prefix}-characterService-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:*
+        Resource: 
+          - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.characterTable}
+          - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.characterTable}/*
+
+
   gameService:
     name: ${self:custom.prefix}-gameService
-    description: tome endpoint
+    description: tome endpoint for managing game data
     handler: lambdas/loginService.handler
     events:
     - httpApi:
         path: /health
         method: GET
+    - httpApi:
+        path: /game
+        method: GET
+    - httpApi:
+        path: /game
+        method: POST
     layers: 
       - !Ref PythonRequirementsLambdaLayer
     package:
@@ -55,18 +94,66 @@ functions:
     memorySize: 128
     environment:
       LOG_LEVEL: logging.INFO
-    # iamRoleStatementsName: ${self:custom.prefix}-login-role
-    # iamRoleStatements:
-    #   - Effect: Allow
-    #     Action:
-    #       - dynamodb:*
-    #     Resource: 
-    #       - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.userTable}
-    #       - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.userTable}/*
+      CHARACTER_TABLE: ${self:custom.characterTable}
+      GAME_TABLE: ${self:custom.gameTable}
+    iamRoleStatementsName: ${self:custom.prefix}-gameService-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:*
+        Resource: 
+          - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.gameTable}
+          - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.gameTable}/*
 
 # you can add CloudFormation resource templates here
-#resources:
-#  Resources:
+resources:
+  Resources:
+    characterTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.characterTable}
+        AttributeDefinitions:
+          - AttributeName: characterId
+            AttributeType: S
+          - AttributeName: participant
+            AttributeType: S
+        KeySchema:
+          - AttributeName: characterId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: participant-index
+            KeySchema:
+              - AttributeName: participant
+                KeyType: HASH
+              - AttributeName: characterId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    gameTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.gameTable}
+        AttributeDefinitions:
+          - AttributeName: guildId
+            AttributeType: S
+          - AttributeName: ownerId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: guildId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: owner-index
+            KeySchema:
+              - AttributeName: ownerId
+                KeyType: HASH
+              - AttributeName: guildId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
 #    NewResource:
 #      Type: AWS::S3::Bucket
 #      Properties:

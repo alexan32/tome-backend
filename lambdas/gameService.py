@@ -17,7 +17,7 @@ loglevel = os.environ["LOG_LEVEL"]
 logger.setLevel(eval(loglevel))
 
 dynamodb = boto3.resource('dynamodb')
-
+gameTable = dynamodb.Table(os.environ["GAME_TABLE"])
 def lambda_handler(event, context):
     logger.info(f"event: {json.dumps(event)}")
     httpContext = event['requestContext'].get("http", {})
@@ -32,8 +32,11 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/health':
         response = buildResponse(200, "UP")
 
-    elif method == 'POST' and path == '/create-game':
+    elif method == 'POST' and path == '/game':
         response = createGame(body)
+
+    elif method == "GET" and path == '/game':
+        response = getGame(body)
 
     else:
         response = buildResponse(status, message)
@@ -43,16 +46,40 @@ def lambda_handler(event, context):
 # REQUEST HANDLERS ----------------------------------------
 
 def createGame(body):
-    pass
+    ownerUser = body.get("ownerUser", "").strip().lower()
+    guildId = body.get("guildId", "").strip().lower()
+    ownerId= body.get("ownerId", "").strip().lower()
 
+    if ownerUser == "" or guildId == "" or ownerId == "":
+        return buildResponse(401, "missing required parameters. expected \"ownerUser\", \"guildId\", and \"ownerId\".")
+
+    status, message = createNewGame()
+    return buildResponse(status, message)
+
+
+def getGame(body):
+    guildId = body.get("guildId", "").strip().lower()
+    if guildId == "":
+        return buildResponse(401, "missing required parameter \"guildId\".")
+
+    status, message, data = performQuery(gameTable, {"KeyConditionExpression": Key('guildId').eq(guildId)})
+    if status != 200:
+        return buildResponse(500, message)
+    if len(data) == 0:
+        return buildResponse(404, f"No matching game for guildId \"{guildId}\"")
+    return buildResponse(status, message, data[0])
 
 
 # OTHER OPERATIONS ----------------------------------------
 
-def createNewGame(guildId):
+
+def createNewGame(guildId, ownerId, ownerUser):
     gameData = {
         "guildId": guildId,
-        "participants": [],
-        "characters": [],
+        "ownerId": ownerId,
+        "ruleset":{},
+        "participants":{},
+        "ownerUser": ownerUser,
         "created": getDateString()
     }
+    return putItem(gameTable, gameData)

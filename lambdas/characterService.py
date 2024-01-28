@@ -19,6 +19,8 @@ loglevel = os.environ["LOG_LEVEL"]
 logger.setLevel(eval(loglevel))
 
 dynamodb = boto3.resource('dynamodb')
+characterTable = dynamodb.Table(os.environ['CHARACTER_TABLE'])
+
 
 def lambda_handler(event, context):
     logger.info(f"event: {json.dumps(event)}")
@@ -34,6 +36,12 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/health':
         response = buildResponse(200, "UP")
 
+    elif method == 'GET' and path == '/character':
+        response = getCharacter(body)
+
+    elif method == 'POST' and path == '/character':
+        response = putCharacter(body)
+
     else:
         response = buildResponse(status, message)
 
@@ -41,6 +49,22 @@ def lambda_handler(event, context):
 
 # REQUEST HANDLERS ----------------------------------------
 
+def getCharacter(body):
+    characterId = body.get("characterId", "").strip().lower()
+    if characterId == "":
+        return buildResponse(401, "missing required parameter \"characterId\".")
 
+    status, message, data = performQuery(characterTable, {"KeyConditionExpression": Key('characterId').eq(characterId)})
+    if status != 200:
+        return buildResponse(500, message)
+    if len(data) == 0:
+        return buildResponse(404, f"No matching character for characterId \"{characterId}\"")
+    return buildResponse(status, message, data[0])
+
+def putCharacter(body):
+    body["characterId"] = body["characterId"].lower()
+    body["participant"] = body["participant"].lower()
+    status, message = putItem(characterTable, body)
+    return buildResponse(status, message)
 
 # OTHER OPERATIONS ----------------------------------------

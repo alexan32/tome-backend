@@ -38,7 +38,7 @@ def putItem(table, item, maxRetries=2, depth=0,):
         logger.error(message)
         if depth == maxRetries:
             logger.error("Maximum depth reached, putItem returning failure.")
-            return 400, message
+            return 500, message
         else:
             time.sleep(1)
             return putItem(table, item, maxRetries, depth + 1)
@@ -76,7 +76,7 @@ def performQuery(table, queryArgs:dict, maxRetries=2, depth=0):
         logger.error(message)
         if depth == maxRetries:
             logger.error("Maximum depth reached, perform query returning failure.")
-            return status, message, data
+            return 500, message, data
         else:
             time.sleep(1)
             return performQuery(table, queryArgs, maxRetries, depth + 1 )
