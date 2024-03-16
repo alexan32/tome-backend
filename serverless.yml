@@ -22,6 +22,7 @@ custom:
   prefix: tome-${self:custom.env}
   characterTable: ${self:custom.prefix}-characterTable
   gameTable: ${self:custom.prefix}-gameTable
+  participantTable: ${self:custom.prefix}-participantTable
   pythonRequirements:
     useStaticCache: false
     useDownloadCache: false
@@ -45,6 +46,9 @@ functions:
     events:
     - httpApi:
         path: /characterservice/character
+        method: GET
+    - httpApi:
+        path: /characterservice/characters
         method: GET
     - httpApi:
         path: /characterservice/health
@@ -114,6 +118,36 @@ functions:
           - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.gameTable}
           - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.gameTable}/*
 
+
+participantService:
+    name: ${self:custom.prefix}-participantService
+    description: GET and PUT access to the characters table
+    handler: lambdas/participantService.lambda_handler
+    events:
+    - httpApi:
+        path: /participantservice/health
+        method: GET
+    layers: 
+      - !Ref PythonRequirementsLambdaLayer
+    package:
+      patterns:
+        - lambdas/participantService.py
+        - lambdas/utils.py
+    timeout: 6
+    memorySize: 128
+    environment:
+      LOG_LEVEL: logging.INFO
+      CHARACTER_TABLE: ${self:custom.characterTable}
+    iamRoleStatementsName: ${self:custom.prefix}-participantService-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:*
+        Resource: 
+          - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.participantTable}
+          - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.participantTable}/*
+
+
 # you can add CloudFormation resource templates here
 resources:
   Resources:
@@ -126,6 +160,8 @@ resources:
             AttributeType: S
           - AttributeName: participant
             AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
         KeySchema:
           - AttributeName: characterId
             KeyType: HASH
@@ -133,6 +169,14 @@ resources:
           - IndexName: participant-index
             KeySchema:
               - AttributeName: participant
+                KeyType: HASH
+              - AttributeName: characterId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: user-index
+            KeySchema:
+              - AttributeName: userId
                 KeyType: HASH
               - AttributeName: characterId
                 KeyType: RANGE
@@ -161,6 +205,18 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    participantTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.participantTable}
+        AttributeDefinitions:
+          - AttributeName: username
+            AttributeType: S
+        KeySchema:
+          - AttributeName: username
+            KeyType: HASH
         BillingMode: PAY_PER_REQUEST
 
 #    NewResource:

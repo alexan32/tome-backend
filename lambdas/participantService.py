@@ -19,6 +19,7 @@ loglevel = os.environ["LOG_LEVEL"]
 logger.setLevel(eval(loglevel))
 
 dynamodb = boto3.resource('dynamodb')
+participantTable = dynamodb.Table(os.environ["PARTICIPANT_TABLE"])
 
 def lambda_handler(event, context):
     logger.info(f"event: {json.dumps(event)}")
@@ -31,8 +32,14 @@ def lambda_handler(event, context):
 
     logger.info(f"\npath: {path}\nmethod: {method}\nbody: {body}") 
     
-    if method == 'GET' and path == '/health':
+    if method == 'GET' and path == '/participantservice/health':
         response = buildResponse(200, "UP")
+
+    elif method == 'PUT' and path == "/participantservice/participant":
+        response = createPartcipant(body)
+
+    elif method == "GET" and path == "/participantservice/participant":
+        response = getParticipant(body)
 
     else:
         response = buildResponse(status, message)
@@ -41,6 +48,29 @@ def lambda_handler(event, context):
 
 # REQUEST HANDLERS ----------------------------------------
 
+def createPartcipant(body):
+    username = body.get("username", "").strip().lower()
 
+    if username == "":
+        return buildResponse(422, "missing required parameters. expected \"username\".")
+
+    # status, message, data = performQuery(participantTable, {"KeyConditionExpression": Key('username').eq(username)})
+    # if status != 200:
+    #     return buildResponse(500, message)
+    # if len(data) != 0:
+    #     return buildResponse(422, f"There is already a participant register with that username.")
+    
+    status, message = createNewParticipant(username)
+    return buildResponse(status, message)
+
+
+def getParticipant(body):
+    pass
 
 # OTHER OPERATIONS ----------------------------------------
+def createNewParticipant(username):
+    participant = {
+        "username": username,
+        "discordId": None
+    }
+    return putItem(participantTable, participant)

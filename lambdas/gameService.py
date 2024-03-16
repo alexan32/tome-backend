@@ -18,6 +18,7 @@ logger.setLevel(eval(loglevel))
 
 dynamodb = boto3.resource('dynamodb')
 gameTable = dynamodb.Table(os.environ["GAME_TABLE"])
+
 def lambda_handler(event, context):
     logger.info(f"event: {json.dumps(event)}")
     httpContext = event['requestContext'].get("http", {})

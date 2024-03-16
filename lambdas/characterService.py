@@ -39,6 +39,9 @@ def lambda_handler(event, context):
     elif method == 'GET' and path == '/characterservice/character':
         response = getCharacter(body)
 
+    elif method == 'GET' and path == '/characterservice/characters':
+        response = getCharacters(body)
+
     elif method == 'PUT' and path == '/characterservice/character':
         response = putCharacter(body)
 
@@ -61,6 +64,31 @@ def getCharacter(body):
         return buildResponse(404, f"No matching character for characterId \"{characterId}\"")
     
     return buildResponse(status, message, {"data": data[0]})
+
+def getCharacters(body):
+    userId = body.get("userId", "").strip().lower()
+    participant = body.get("participant", "").strip().lower()
+    if userId == "" and participant == "":
+        return buildResponse(401, "missing required parameter. Expected either \"userId\" or \"participant\"")
+    
+    if participant != "":
+        kwargs = {
+            "IndexName": "participant-index",
+            "KeyConditionExpression": Key('userId').eq(userId)
+        }
+    else:
+        kwargs = {
+            "IndexName": "user-index",
+            "KeyConditionExpression": Key('userId').eq(userId)
+        }
+
+    status, message, data = performQuery(characterTable, kwargs)
+    if status != 200:
+        return buildResponse(500, message)
+    if len(data) == 0:
+        return buildResponse(204, f"No characters found", {"data": data[0]})
+    
+    return buildResponse(200, "ok", {"data": data[0]})
 
 def putCharacter(body):
     body["characterId"] = body["characterId"].lower()
