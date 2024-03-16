@@ -28,6 +28,7 @@ def lambda_handler(event, context):
     method = httpContext["method"]
     path = httpContext['path']
     body = json.loads(event.get('body', '{}')) 
+    queryParams = event.get('queryStringParameters', {})
     status = 400
     message = "bad request method or malformed request"
 
@@ -37,10 +38,10 @@ def lambda_handler(event, context):
         response = buildResponse(200, "UP")
 
     elif method == 'GET' and path == '/characterservice/character':
-        response = getCharacter(body)
+        response = getCharacter(queryParams)
 
     elif method == 'GET' and path == '/characterservice/characters':
-        response = getCharacters(body)
+        response = getCharacters(queryParams)
 
     elif method == 'PUT' and path == '/characterservice/character':
         response = putCharacter(body)
@@ -74,7 +75,7 @@ def getCharacters(body):
     if participant != "":
         kwargs = {
             "IndexName": "participant-index",
-            "KeyConditionExpression": Key('userId').eq(userId)
+            "KeyConditionExpression": Key('participant').eq(participant)
         }
     else:
         kwargs = {
@@ -86,9 +87,9 @@ def getCharacters(body):
     if status != 200:
         return buildResponse(500, message)
     if len(data) == 0:
-        return buildResponse(204, f"No characters found", {"data": data[0]})
+        return buildResponse(204, f"No characters found", {"data": data})
     
-    return buildResponse(200, "ok", {"data": data[0]})
+    return buildResponse(200, "ok", {"data": data})
 
 def putCharacter(body):
     body["characterId"] = body["characterId"].lower()
