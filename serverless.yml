@@ -119,14 +119,23 @@ functions:
           - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.gameTable}/*
 
 
-participantService:
+  participantService:
     name: ${self:custom.prefix}-participantService
-    description: GET and PUT access to the characters table
+    description: access records about a game participant. Associate userId with discordId, a users active character, etc
     handler: lambdas/participantService.lambda_handler
     events:
     - httpApi:
         path: /participantservice/health
         method: GET
+    - httpApi:
+        path: /participantservice/participant
+        method: GET
+    - httpApi:
+        path: /participantservice/participant
+        method: PUT
+    - httpApi:
+        path: /participantservice/update-participant
+        method: PUT
     layers: 
       - !Ref PythonRequirementsLambdaLayer
     package:
@@ -137,7 +146,7 @@ participantService:
     memorySize: 128
     environment:
       LOG_LEVEL: logging.INFO
-      CHARACTER_TABLE: ${self:custom.characterTable}
+      PARTICIPANT_TABLE: ${self:custom.participantTable}
     iamRoleStatementsName: ${self:custom.prefix}-participantService-role
     iamRoleStatements:
       - Effect: Allow
@@ -212,11 +221,20 @@ resources:
       Properties:
         TableName: ${self:custom.participantTable}
         AttributeDefinitions:
-          - AttributeName: username
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: discordId
             AttributeType: S
         KeySchema:
-          - AttributeName: username
+          - AttributeName: userId
             KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: participant-index
+            KeySchema:
+              - AttributeName: discordId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
 
 #    NewResource:

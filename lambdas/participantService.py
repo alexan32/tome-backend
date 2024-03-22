@@ -41,6 +41,9 @@ def lambda_handler(event, context):
     elif method == "GET" and path == "/participantservice/participant":
         response = getParticipant(body)
 
+    elif method == 'PUT' and path == "/participantservice/update-participant":
+        response = updateParticipant(body)
+
     else:
         response = buildResponse(status, message)
 
@@ -49,28 +52,71 @@ def lambda_handler(event, context):
 # REQUEST HANDLERS ----------------------------------------
 
 def createPartcipant(body):
-    username = body.get("username", "").strip().lower()
+    userId = body.get("userId", "").strip().lower()
+    discordId = body.get("participant", "not_set").strip().lower()
 
-    if username == "":
-        return buildResponse(422, "missing required parameters. expected \"username\".")
+    if userId == "":
+        return buildResponse(422, "missing required parameters. expected \"userId\".")
 
-    # status, message, data = performQuery(participantTable, {"KeyConditionExpression": Key('username').eq(username)})
-    # if status != 200:
-    #     return buildResponse(500, message)
-    # if len(data) != 0:
-    #     return buildResponse(422, f"There is already a participant register with that username.")
+    status, message, data = performQuery(participantTable, {"KeyConditionExpression": Key('userId').eq(userId)})
+    if status != 200:
+        return buildResponse(500, "An error occurred, please try again later.")
+    if len(data) != 0:
+        return buildResponse(422, f"There is already a participant registered with that userId.")
     
-    status, message = createNewParticipant(username)
+    status, message = createNewParticipant(userId, discordId)
     return buildResponse(status, message)
 
 
+def updateParticipant(body):
+    userId = body.get("userId", "").strip().lower()
+
+    if userId == "":
+        return buildResponse(422, "missing required parameters. expected \"userId\".")  
+    
+    status, message, data = performQuery(participantTable, {"KeyConditionExpression": Key('userId').eq(userId)})
+    if status != 200:
+        return buildResponse(500, "An error occurred, please try again later.")
+    if len(data) == 0:
+        return buildResponse(404, "participant not found.")
+
+
+    # TODO: add body validation before updating
+    status, message = putItem(participantTable, body)
+    return buildResponse(status, message)
+    
+
 def getParticipant(body):
-    pass
+    userId = body.get("userId", "").strip().lower()
+    discordId = body.get("participant", "").strip().lower()
+
+    if userId == "" and discordId == "":
+        return buildResponse(422, "missing required parameters. expected \"userId\" or \"participant\".")
+    
+    if userId != "":
+        kwargs = {
+            "KeyConditionExpression": Key('userId').eq(userId)
+        }
+    else:
+        kwargs = {
+            "IndexName" : "participant-index",
+            "KeyConditionExpression": Key('discordId').eq(discordId)
+        }
+
+    status, message, data = performQuery(participantTable, kwargs)
+    if status != 200:
+        return buildResponse(500, "An error occurred, please try again later.")
+    if len(data) == 0:
+        return buildResponse(404, f"participant not found.")
+    return buildResponse(status, message, data[0])
+
 
 # OTHER OPERATIONS ----------------------------------------
-def createNewParticipant(username):
+def createNewParticipant(userId, discordId):
     participant = {
-        "username": username,
-        "discordId": None
+        "userId": userId,
+        "discordId": discordId,
+        "games": [],
+        "activeCharacter": None
     }
     return putItem(participantTable, participant)
