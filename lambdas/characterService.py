@@ -38,7 +38,7 @@ def lambda_handler(event, context):
         response = buildResponse(200, "UP")
 
     elif method == 'GET' and path == '/characterservice/character':
-        response = getCharacter(queryParams)
+        response = getCharacter(body)
 
     elif method == 'GET' and path == '/characterservice/characters':
         response = getCharacters(queryParams)
@@ -48,6 +48,9 @@ def lambda_handler(event, context):
 
     else:
         response = buildResponse(status, message)
+
+    
+    logger.info(f"response: {response}")
 
     return response
 

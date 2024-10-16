@@ -76,10 +76,9 @@ functions:
           - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.characterTable}
           - arn:aws:dynamodb:${self:provider.config.region}:${self:provider.config.account}:table/${self:custom.characterTable}/*
 
-
   gameService:
     name: ${self:custom.prefix}-gameService
-    description: tome endpoint for managing game data
+    description: tome endpoint for managing game data, game relevant data about participants such as a participants active character
     handler: lambdas/gameService.lambda_handler
     events:
     - httpApi:
@@ -121,7 +120,7 @@ functions:
 
   participantService:
     name: ${self:custom.prefix}-participantService
-    description: access records about a game participant. Associate userId with discordId, a users active character, etc
+    description: Associate userId, discordId, and games the participant is in. user data not related to a single game.
     handler: lambdas/participantService.lambda_handler
     events:
     - httpApi:
@@ -221,18 +220,20 @@ resources:
       Properties:
         TableName: ${self:custom.participantTable}
         AttributeDefinitions:
-          - AttributeName: userId
+          - AttributeName: guildId
             AttributeType: S
           - AttributeName: discordId
             AttributeType: S
         KeySchema:
-          - AttributeName: userId
+          - AttributeName: discordId
             KeyType: HASH
         GlobalSecondaryIndexes:
-          - IndexName: participant-index
+          - IndexName: guild-index
             KeySchema:
-              - AttributeName: discordId
+              - AttributeName: guildId
                 KeyType: HASH
+              - AttributeName: discordId
+                KeyType: RANGE
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
